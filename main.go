@@ -37,9 +37,9 @@ func Command(cmd string) error {
 }
 
 func updateHandler(c *gin.Context) {
-	log.Infof("get a request")
+	log.Infof("get a request from host[%s]", c.ClientIP())
 
-	hook, _ := github.New(github.Options.Secret("paddleflow123"))
+	hook, _ := github.New(github.Options.Secret("anythingYouWant"))
 	payload, err := hook.Parse(c.Request, github.WorkflowJobEvent, github.WorkflowRunEvent)
 	if err != nil {
 		if err == github.ErrEventNotFound {
