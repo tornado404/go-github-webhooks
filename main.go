@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"os/exec"
 
@@ -29,17 +30,26 @@ func printPong(c *gin.Context) {
 
 func Command(cmd string) error {
 	c := exec.Command("bash", "-c", cmd)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	c.Stdout = &out
+	c.Stderr = &stderr
+
 	// 此处是windows版本
 	// c := exec.Command("cmd", "/C", cmd)
-	output, err := c.CombinedOutput()
-	fmt.Println(string(output))
-	return err
+	if err := c.Run(); err != nil {
+		log.Errorf("run command failed. err: %v, stderr: %s", err, stderr.String())
+		return err
+	} else {
+		log.Infof("stdout: %s", out.String())
+	}
+	return nil
 }
 
 func updateHandler(c *gin.Context) {
 	log.Infof("get a request from host[%s]", c.ClientIP())
 
-	hook, _ := github.New(github.Options.Secret("anythingYouWant"))
+	hook, _ := github.New(github.Options.Secret("YourSecret"))
 	payload, err := hook.Parse(c.Request, github.WorkflowJobEvent, github.WorkflowRunEvent)
 	if err != nil {
 		if err == github.ErrEventNotFound {
@@ -49,18 +59,21 @@ func updateHandler(c *gin.Context) {
 	}
 	log.Infof("parse request")
 	switch payload.(type) {
-	case github.WorkflowJobPayload:
-		jobBody := payload.(github.WorkflowJobPayload)
-		// Do whatever you want from here...
-		log.Infof("WorkflowJobPayload: %+v", jobBody)
-		Command("ls")
 	case github.WorkflowRunPayload:
 		jobBody := payload.(github.WorkflowRunPayload)
+		if jobBody.Action != "completed" {
+			log.Infof("uncompleted action, pass it")
+			break
+		}
 		// Do whatever you want from here...
-		log.Infof("WorkflowRunPayload: %+v", jobBody)
-		Command("ls")
+		jsonBytes, _ := json.Marshal(jobBody)
+		log.Infof("WorkflowRunPayload: %s", string(jsonBytes))
+		Command("./build.sh")
+		// if build.sh absent, can use following
+		//Command("rm -rf PaddleFlow && git clone -c http.proxy=\"https://agent.baidu.com:8118\" https://github.com/tornado404/go-github-webhooks.git ")
+	// more case reference
 	default:
-		log.Infof("bad request body")
+		log.Infof("no relation request")
 	}
 	c.String(http.StatusOK, "pong")
 }
