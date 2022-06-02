@@ -22,7 +22,7 @@ you need a server with following:
 ### <a id = "jump1">customize your github event</a>
 todo
 
-### <a id = "jump1">about shell file</a>
+### <a id = "jump2">about shell file</a>
 todo
 
 ## More
